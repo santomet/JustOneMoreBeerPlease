@@ -1,2 +1,2 @@
 # JustOneMoreBeerPlease
-Simple and ugly Android app (Qt widgets) as a interface for school project
+Simple and Android app (C++/QML) as a interface for school project

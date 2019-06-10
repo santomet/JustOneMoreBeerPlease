@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>qtquickcontrols2.conf</file>
+        <file>GameSettings.qml</file>
+        <file>SplashScreen.qml</file>
+        <file>App.qml</file>
+        <file>TitleBar.qml</file>
+        <file>BottomLine.qml</file>
+        <file>BeverageList.qml</file>
+        <file>GameButton.qml</file>
+        <file>GamePage.qml</file>
+        <file>qmldir</file>
+        <file>TablesList.qml</file>
+        <file>OrderList.qml</file>
+    </qresource>
+</RCC>

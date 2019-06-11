@@ -4,6 +4,11 @@ import "."
 GamePage {
     property double fulfillmentCost: 0
 
+    function init()
+    {
+        backend.requestOrdersForActiveTable()
+    }
+
     Rectangle {
         id: viewContainer
         anchors.top: parent.top

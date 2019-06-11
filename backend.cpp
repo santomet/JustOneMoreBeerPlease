@@ -6,7 +6,13 @@ BackEnd::BackEnd(QObject *parent) :
 
     if(demo) {
     QStringList l{"Table 1","Table 2","Table 3", "Table 4", "Table 5", "Table 6", "Outside 1", "Outside 2", "Outside 3", "Outside 4"};
-    setTables(l);
+    QList<int> ids;
+    QList<bool> waiting;
+    for(int i = 1;i<=l.count();i++) {
+        ids.append(i);
+        waiting.append(false);
+    }
+    setTables(ids, l, waiting);
 //    l.removeOne("Table 2");
 //    setOrderWaitingTables(l, true);
 
@@ -19,6 +25,31 @@ BackEnd::BackEnd(QObject *parent) :
     addBeverage(6, "Starobrno Drak", "0.3l", 23);
     addBeverage(7, "Budvar 12", "0,3l", 25);
     }
+    else {
+     client = new ApiClient();
+     connect(this, &BackEnd::requestTablesSignal, client, &ApiClient::requestTables);
+     connect(client, &ApiClient::tablesResponse, this, &BackEnd::setTables);
+
+     connect(this, &BackEnd::requestMenuSignal, client, &ApiClient::requestMenu);
+     connect(client, &ApiClient::menuResponse, this, &BackEnd::setBeverages);
+
+     connect(this, &BackEnd::requestOrdersSignal, client, &ApiClient::requestOrders);
+     connect(client, &ApiClient::ordersResponse, this, &BackEnd::setOrders);
+
+     connect(this, &BackEnd::requestFulfillOrdersSignal, client, &ApiClient::fulfillOrders);
+     connect(client, &ApiClient::fulfillOrdersFinished, this, &BackEnd::requestOrdersForActiveTable);
+
+     connect(this, &BackEnd::requestCreateOrder, client, &ApiClient::createOrder);
+     connect(client, &ApiClient::createOrderFinished, this, &BackEnd::requestOrdersForActiveTable);
+
+     emit requestTablesSignal();
+     emit requestMenuSignal();
+    }
+}
+
+BackEnd::~BackEnd()
+{
+    delete client;
 }
 
 QString BackEnd::userName()
@@ -59,6 +90,11 @@ QString BackEnd::activeTable()
     return mActiveTable;
 }
 
+int BackEnd::activeTableId()
+{
+    return mActiveTableId;
+}
+
 float BackEnd::activeTableCost()
 {
     return costForActiveTable;
@@ -80,19 +116,50 @@ void BackEnd::setActiveTable(const QString &tableName)
     emit activeTableChanged();
 }
 
-void BackEnd::setTables(QStringList tableNames)
+void BackEnd::setActiveTableId(const int id)
+{
+    mActiveTableId = id;
+    emit activeTableIdChanged();
+}
+
+void BackEnd::setTables(QList<int> ids, QStringList names, QList<bool> waitingOrders)
 {
     qDeleteAll(mTables);
-    for(const QString &name : tableNames) {
+    mTables.clear();
+    if(names.count() != ids.count() || names.count() != waitingOrders.count()){
+        return;
+    }
+    for(int i = 0; i<names.count();++i) {
         TableInfo *ti = new TableInfo(this);
-        ti->setName(name);
+        ti->setName(names.at(i));
+        ti->setId(ids.at(i)); qDebug() << "Adding table id " << ids.at(i);
+        ti->setWaitingOrder(waitingOrders.at(i));
         mTables.append(ti);
     }
+    emit tablesChanged();
 }
 
 void BackEnd::clearBeverages()
 {
     qDeleteAll(mBeverages);
+    mBeverages.clear();
+    emit beveragesChanged();
+}
+
+void BackEnd::setBeverages(QList<int> id, QStringList names, QStringList sizes, QList<double> prices)
+{
+    qDeleteAll(mBeverages);
+    mBeverages.clear();
+
+    if(id.count() != names.count() || id.count() != sizes.count() || id.count()!= prices.count()) {
+        emit beveragesChanged();
+        return;
+    }
+
+    for(int i = 0; i<id.count(); ++i) {
+        addBeverage(id.at(i),names.at(i),sizes.at(i),prices.at(i));
+    }
+
     emit beveragesChanged();
 }
 
@@ -104,28 +171,50 @@ void BackEnd::addBeverage(int id, QString name, QString size, float price)
     bi->setSize(size);
     bi->setPrice(price);
     mBeverages.append(bi);
-    emit beveragesChanged();
+}
+
+void BackEnd::setOrders(QList<QPair<int, QList<int> > > orders)
+{
+    qDeleteAll(mOrders);
+    mOrders.clear();
+
+    for(const QPair<int,QList<int>> &p : orders) {
+        OrderInfo *oi = new OrderInfo(this);
+        oi->setId(p.first);
+        oi->setTable(mActiveTable);
+        for(int id : p.second) {
+            for(QObject *bo : mBeverages) {
+                BeverageInfo *bi = qobject_cast<BeverageInfo*>(bo);
+                if(bi->id() == id) {
+                    oi->addBeverage(bi->id(), bi->name(), bi->size(), bi->price(), 1); //do this shit a many times as needed
+                }
+            }
+        }
+        mOrders.append(oi);
+    }
+    emit ordersChanged();
 }
 
 void BackEnd::makeOrder()
 {
-    OrderInfo *oi = new OrderInfo(this);
-    oi->setTable(mActiveTable);
-    for(QObject *o : mBeverages) {
-        if(!o) {
-            continue;
+    if(demo) {
+        OrderInfo *oi = new OrderInfo(this);
+        oi->setTable(mActiveTable);
+        for(QObject *o : mBeverages) {
+            if(!o) {
+                continue;
+            }
+            BeverageInfo *bi = qobject_cast<BeverageInfo*>(o);
+            if(bi->orderCount() > 0) {
+                oi->addBeverage(bi);
+            }
+            bi->setOrderCount(0);
         }
-        BeverageInfo *bi = qobject_cast<BeverageInfo*>(o);
-        if(bi->orderCount() > 0) {
-            oi->addBeverage(bi);
+        if(oi->isEmpty()) {
+            delete oi;
         }
-        bi->setOrderCount(0);
-    }
-    if(oi->isEmpty()) {
-        delete oi;
-    }
-    else {
-        if(demo) {
+        else {
+
             for(QObject *to : mTables) {
                 if(to->property("tableName").toString() == mActiveTable) {
                     to->setProperty("waitingOrder", true);
@@ -133,7 +222,24 @@ void BackEnd::makeOrder()
             }
             mOrders.append(oi);
             emit ordersChanged();
+
+
         }
+    }
+    else {
+        QList<int> bevIds;
+        for(QObject *o : mBeverages) {
+            if(!o) {
+                continue;
+            }
+            BeverageInfo *bi = qobject_cast<BeverageInfo*>(o);
+            for(int i = 0;i<bi->orderCount();++i) {
+                bevIds.append(bi->id());
+            }
+            bi->setOrderCount(0);
+        }
+
+        emit requestCreateOrder(mActiveTableId, bevIds);
     }
 }
 
@@ -168,6 +274,40 @@ void BackEnd::fulfill()
     emit ordersChanged();
     setOrderWaitingTables(tablesStillUnfulfilled, true, true);
     }
+    else {
+        QList<QPair<int, QPair<bool,QList<int> > > > orders;
+        for(OrderInfo *i : mOrders) {
+            QPair<int, QPair<bool,QList<int> > >  order;
+            order.first = i->id();
+            for(QObject *bo : i->beveragesList()) {
+                BeverageInfo *bi = qobject_cast<BeverageInfo*>(bo);
+                for(int i = 0; i<bi->fulfilled();++i) {
+                    order.second.second.append(bi->id());
+                }
+                if(bi->fulfilled() == bi->orderCount()) {
+                    order.second.first = true;
+                }
+                bi->setFulfilled(0);
+            }
+            orders.append(order);
+        }
+        emit requestFulfillOrdersSignal(orders);
+    }
+}
+
+void BackEnd::requestTables()
+{
+    emit requestTablesSignal();
+}
+
+void BackEnd::requestOrdersForActiveTable()
+{
+    emit requestOrdersSignal(mActiveTableId);
+}
+
+void BackEnd::requestMenu()
+{
+    emit requestMenuSignal();
 }
 
 void BackEnd::setOrderWaitingTables(QStringList tableNames, bool waiting, bool revertOthers)

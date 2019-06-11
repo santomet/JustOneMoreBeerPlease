@@ -2,6 +2,11 @@ import QtQuick 2.12
 
 GamePage {
 
+    function init()
+    {
+        backend.requestTables()
+    }
+
     Rectangle {
         id: viewContainer
         anchors.top: parent.top
@@ -51,6 +56,7 @@ GamePage {
                     anchors.fill: parent
                     onClicked: {
                         backend.setActiveTable(modelData.tableName)
+                        backend.setActiveTableId(modelData.id)
                         if(modelData.waitingOrder) {
                             app.showPage("OrderList.qml")
                         }

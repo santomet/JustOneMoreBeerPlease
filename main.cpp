@@ -14,6 +14,9 @@ int main(int argc, char *argv[])
 //    qmlRegisterType<BackEnd>("cfb.backend", 1, 0, "BackEnd");
 //    qmlRegisterUncreatableType<BackEnd>("Shared", 1, 0, "BackEnd", "error");
 
+    qRegisterMetaType<QList<QPair<int,QList<int> > >>("QList<QPair<int,QList<int> > >");
+    qRegisterMetaType<QList<QPair<int, QPair<bool, QList<int> > > >>("QList<QPair<int, QPair<bool, QList<int> > > >");
+
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("backend", &backend);
 

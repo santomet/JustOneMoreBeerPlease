@@ -12,6 +12,7 @@ class OrderInfo : public QObject
     Q_PROPERTY(QVariant beverages READ beverages NOTIFY beveragesChanged)
     Q_PROPERTY(QString table READ table WRITE setTable NOTIFY tableNameChanged)
     Q_PROPERTY(QString user READ user WRITE setUserName NOTIFY userNameChanged)
+    Q_PROPERTY(int id READ id WRITE setId NOTIFY idChanged)
 
 
 public:
@@ -30,21 +31,25 @@ signals:
     void beveragesChanged();
     void tableNameChanged();
     void userNameChanged();
+    void idChanged();
 
 public slots:
     QVariant beverages();
     QString table();
     QString user();
+    int id();
 
     QList<QObject*> beveragesList();
 
     void setTable(const QString &tablename);
     void setUserName(const QString &username);
+    void setId(int id);
 
 private:
     QString mTable;
     QList<QObject*> mContents;
     QString mUser;
+    int mId{0};
 };
 
 #endif // ORDERINFO_H

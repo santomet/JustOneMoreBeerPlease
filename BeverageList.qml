@@ -4,6 +4,11 @@ import "."
 GamePage {
     property double totalCost: 0
 
+    function init()
+    {
+        backend.requestMenu()
+    }
+
     Rectangle {
         id: viewContainer
         anchors.top: parent.top

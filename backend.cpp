@@ -13,8 +13,6 @@ BackEnd::BackEnd(QObject *parent) :
         waiting.append(false);
     }
     setTables(ids, l, waiting);
-//    l.removeOne("Table 2");
-//    setOrderWaitingTables(l, true);
 
     addBeverage(0, "Pilsner Urquell", "0.5l", 49);
     addBeverage(1, "Gambrinus 10", "0.5l", 33);
@@ -104,7 +102,6 @@ void BackEnd::setUserName(const QString &userName)
 {
     if (userName == m_userName)
         return;
-    qDebug() << "HAHAHAHHAAHHA";
     m_userName = userName;
     emit userNameChanged();
 }
@@ -132,7 +129,7 @@ void BackEnd::setTables(QList<int> ids, QStringList names, QList<bool> waitingOr
     for(int i = 0; i<names.count();++i) {
         TableInfo *ti = new TableInfo(this);
         ti->setName(names.at(i));
-        ti->setId(ids.at(i)); qDebug() << "Adding table id " << ids.at(i);
+        ti->setId(ids.at(i));
         ti->setWaitingOrder(waitingOrders.at(i));
         mTables.append(ti);
     }
@@ -278,17 +275,20 @@ void BackEnd::fulfill()
         QList<QPair<int, QPair<bool,QList<int> > > > orders;
         for(OrderInfo *i : mOrders) {
             QPair<int, QPair<bool,QList<int> > >  order;
+            bool removeOrderFlag = true;
             order.first = i->id();
             for(QObject *bo : i->beveragesList()) {
                 BeverageInfo *bi = qobject_cast<BeverageInfo*>(bo);
                 for(int i = 0; i<bi->fulfilled();++i) {
                     order.second.second.append(bi->id());
                 }
-                if(bi->fulfilled() == bi->orderCount()) {
-                    order.second.first = true;
+                if(bi->fulfilled() != bi->orderCount()) {
+                    removeOrderFlag = false;
                 }
                 bi->setFulfilled(0);
             }
+            order.second.first = removeOrderFlag;
+
             orders.append(order);
         }
         emit requestFulfillOrdersSignal(orders);

@@ -31,6 +31,7 @@ void ApiClient::requestMenu()
     QList<int> ids;
     QList<double> prices;
     QNetworkRequest request(QUrl(urlbase + "menu/all"));
+    qDebug() << request.url();
     QNetworkReply *reply = nam->get(request);
     while(!reply->isFinished()) {
         qApp->processEvents();
@@ -48,6 +49,7 @@ void ApiClient::requestMenu()
     }
 
     emit menuResponse(ids, names, sizes, prices);
+    delete reply;
 }
 
 void ApiClient::requestTables()
@@ -56,6 +58,7 @@ void ApiClient::requestTables()
     QList<int> ids;
     QList<bool> waiting;
     QNetworkRequest request(QUrl(urlbase + "table/all"));
+    qDebug() << request.url();
     QNetworkReply *reply = nam->get(request);
     while (!reply->isFinished())
     {
@@ -83,14 +86,13 @@ void ApiClient::requestOrders(int tableId)
 
 
     QNetworkRequest request(QUrl(urlbase + "table/orders/tableId=" + QString::number(tableId)));
+    qDebug() << request.url();
     QNetworkReply *reply = nam->get(request);
-//    qDebug() << request.url();
     while (!reply->isFinished())
     {
         qApp->processEvents();
     }
     QByteArray response_data = reply->readAll();
-//    qDebug() << response_data;
     QJsonDocument json = QJsonDocument::fromJson(response_data);
     QJsonArray orders = json.array();
     for(QJsonValue ov : orders) {
@@ -104,6 +106,7 @@ void ApiClient::requestOrders(int tableId)
         ordersToReturn.append(ord);
     }
     emit ordersResponse(ordersToReturn);
+    delete reply;
 }
 
 void ApiClient::fulfillOrders(QList<QPair<int, QPair<bool,QList<int> > > > orders)
@@ -115,6 +118,7 @@ void ApiClient::fulfillOrders(QList<QPair<int, QPair<bool,QList<int> > > > order
 
         if(deleteOrder) {
             QNetworkRequest request(QUrl(urlbase + "order/remove/" + QString::number(orderId)));
+            qDebug() << request.url();
             QNetworkReply *reply = nam->get(request);
             while (!reply->isFinished())
             {
@@ -126,6 +130,7 @@ void ApiClient::fulfillOrders(QList<QPair<int, QPair<bool,QList<int> > > > order
             for(int bevId : bevs) {
                 QNetworkRequest request(QUrl(urlbase + "order/removeMenuItem/orderId=" + QString::number(orderId) + "&menuId=" + QString::number(bevId)));
                 QNetworkReply *reply = nam->get(request);
+                qDebug() << request.url();
                 while (!reply->isFinished())
                 {
                     qApp->processEvents();
@@ -151,6 +156,7 @@ void ApiClient::createOrder(int tableId, QList<int> menuIds)
     url.chop(1);
 
     QNetworkRequest request((QUrl(url)));
+    qDebug() << request.url();
     QNetworkReply *reply = nam->get(request);
     while (!reply->isFinished())
     {
